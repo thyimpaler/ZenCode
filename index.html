@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ZenVoice Codex</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      overscroll-behavior: none;
+      background: #000000;
+    }
+
+    .pulse-ring {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(1.05);
+      }
+    }
+
+    .listening-pulse {
+      animation: listening 1.5s ease-in-out infinite;
+    }
+
+    @keyframes listening {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(250, 250, 250, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 20px rgba(250, 250, 250, 0);
+      }
+    }
+
+    .code-preview {
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .code-preview::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .code-preview::-webkit-scrollbar-track {
+      background: #27272a;
+    }
+
+    .code-preview::-webkit-scrollbar-thumb {
+      background: #52525b;
+      border-radius: 3px;
+    }
+
+    .btn {
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Syntax highlighting */
+    .keyword { color: #c678dd; }
+    .string { color: #98c379; }
+    .comment { color: #5c6370; font-style: italic; }
+    .function { color: #61afef; }
+  </style>
+</head>
+<body class="bg-black text-white min-h-screen flex flex-col">
+  
+  <!-- Header -->
+  <header class="pt-8 pb-6 px-6">
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-light tracking-wide text-zinc-400">ZenVoice</h1>
+      <div id="status" class="flex items-center gap-2">
+        <div id="statusDot" class="w-2 h-2 rounded-full bg-zinc-700"></div>
+        <span id="statusText" class="text-xs text-zinc-500">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col items-center justify-center px-6 pb-20">
+    
+    <!-- Voice Interface -->
+    <div id="voiceInterface" class="w-full max-w-md">
+      <div class="flex flex-col items-center gap-8">
+        
+        <!-- Microphone Button -->
+        <button 
+          id="micButton" 
+          class="relative w-32 h-32 rounded-full bg-zinc-800 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled
+        >
+          <svg id="micIcon" class="w-12 h-12 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+          </svg>
+          <div id="pulseRing" class="absolute inset-0 rounded-full border-2 border-zinc-600 opacity-0"></div>
+        </button>
+
+        <!-- Status Message -->
+        <div class="text-center">
+          <p id="promptText" class="text-sm text-zinc-500 h-6"></p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Code Preview Card -->
+    <div id="previewCard" class="hidden w-full max-w-2xl mt-8 fade-in">
+      <div class="bg-zinc-800 rounded-lg overflow-hidden" style="box-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+        
+        <!-- Preview Header -->
+        <div class="px-6 py-4 border-b border-zinc-700 flex items-center justify-between">
+          <span class="text-sm text-zinc-400">Code Preview</span>
+          <span id="languageBadge" class="text-xs px-3 py-1 rounded-full bg-zinc-700 text-zinc-300"></span>
+        </div>
+
+        <!-- Code Display -->
+        <div class="p-6">
+          <pre id="codeDisplay" class="code-preview text-zinc-100 bg-black rounded-md p-4"></pre>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="px-6 pb-6 pt-2 flex gap-3">
+          <button 
+            id="discardBtn" 
+            class="btn flex-1 px-6 py-3 rounded-lg bg-zinc-700 text-white text-sm font-medium hover:bg-zinc-600"
+          >
+            Discard
+          </button>
+          <button 
+            id="confirmBtn" 
+            class="btn flex-1 px-6 py-3 rounded-lg bg-white text-black text-sm font-medium hover:bg-zinc-200"
+          >
+            Confirm & Insert
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="pb-8 px-6 text-center">
+    <p class="text-xs text-zinc-600">Speak naturally. Review code. Approve with a tap.</p>
+  </footer>
+
+  <script>
+    // Configuration
+    const WS_URL = window.location.protocol === 'https:' 
+      ? `wss://${window.location.host}` 
+      : `ws://${window.location.host}`;
+
+    // State
+    let ws = null;
+    let recognition = null;
+    let isListening = false;
+    let currentCode = '';
+    let currentLanguage = '';
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const micButton = document.getElementById('micButton');
+    const micIcon = document.getElementById('micIcon');
+    const pulseRing = document.getElementById('pulseRing');
+    const promptText = document.getElementById('promptText');
+    const previewCard = document.getElementById('previewCard');
+    const codeDisplay = document.getElementById('codeDisplay');
+    const languageBadge = document.getElementById('languageBadge');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const discardBtn = document.getElementById('discardBtn');
+
+    // Initialize WebSocket
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        console.log('[WS] Connected');
+        ws.send(JSON.stringify({ type: 'identify', clientType: 'mobile' }));
+        updateStatus('connected', 'Connected');
+        micButton.disabled = false;
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('[WS] Message:', data.type);
+
+        if (data.type === 'code_preview') {
+          showCodePreview(data.code, data.language || 'text');
+        } else if (data.type === 'error') {
+          promptText.textContent = `Error: ${data.message}`;
+          setTimeout(() => promptText.textContent = '', 3000);
+        } else if (data.type === 'processing') {
+          promptText.textContent = 'Generating code...';
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('[WS] Error:', error);
+        updateStatus('error', 'Connection error');
+      };
+
+      ws.onclose = () => {
+        console.log('[WS] Disconnected');
+        updateStatus('disconnected', 'Disconnected');
+        micButton.disabled = true;
+        setTimeout(connectWebSocket, 3000);
+      };
+    }
+
+    // Update connection status
+    function updateStatus(state, text) {
+      statusText.textContent = text;
+      if (state === 'connected') {
+        statusDot.className = 'w-2 h-2 rounded-full bg-green-500';
+      } else if (state === 'error') {
+        statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+      } else {
+        statusDot.className = 'w-2 h-2 rounded-full bg-zinc-700';
+      }
+    }
+
+    // Initialize Speech Recognition
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        promptText.textContent = 'Speech recognition not supported';
+        micButton.disabled = true;
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        console.log('[Speech] Started');
+        isListening = true;
+        micButton.classList.add('listening-pulse');
+        pulseRing.classList.add('pulse-ring');
+        pulseRing.classList.remove('opacity-0');
+        micIcon.classList.add('text-white');
+        promptText.textContent = 'Listening...';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log('[Speech] Transcript:', transcript);
+        promptText.textContent = `"${transcript}"`;
+        
+        // Send to extension
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'voice_prompt',
+            prompt: transcript,
+            model: 'claude' // Could be made configurable
+          }));
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('[Speech] Error:', event.error);
+        promptText.textContent = `Error: ${event.error}`;
+        stopListening();
+      };
+
+      recognition.onend = () => {
+        console.log('[Speech] Ended');
+        stopListening();
+      };
+    }
+
+    // Start listening
+    function startListening() {
+      if (recognition && !isListening) {
+        previewCard.classList.add('hidden');
+        recognition.start();
+      }
+    }
+
+    // Stop listening
+    function stopListening() {
+      isListening = false;
+      micButton.classList.remove('listening-pulse');
+      pulseRing.classList.remove('pulse-ring');
+      pulseRing.classList.add('opacity-0');
+      micIcon.classList.remove('text-white');
+      
+      if (!currentCode) {
+        setTimeout(() => {
+          promptText.textContent = '';
+        }, 2000);
+      }
+    }
+
+    // Show code preview
+    function showCodePreview(code, language) {
+      currentCode = code;
+      currentLanguage = language;
+      
+      codeDisplay.textContent = code;
+      languageBadge.textContent = language;
+      previewCard.classList.remove('hidden');
+      
+      promptText.textContent = '';
+    }
+
+    // Confirm code insertion
+    function confirmCode() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'approve' }));
+        previewCard.classList.add('hidden');
+        promptText.textContent = 'Code inserted ✓';
+        currentCode = '';
+        setTimeout(() => promptText.textContent = '', 2000);
+      }
+    }
+
+    // Discard code
+    function discardCode() {
+      previewCard.classList.add('hidden');
+      currentCode = '';
+      promptText.textContent = '';
+    }
+
+    // Event Listeners
+    micButton.addEventListener('click', startListening);
+    confirmBtn.addEventListener('click', confirmCode);
+    discardBtn.addEventListener('click', discardCode);
+
+    // Prevent scroll bounce on iOS
+    document.body.addEventListener('touchmove', (e) => {
+      if (e.target === document.body) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Initialize
+    connectWebSocket();
+    initSpeechRecognition();
+  </script>
+
+</body>
+</html>

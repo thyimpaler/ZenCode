@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AuraCode Remote</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      overscroll-behavior: none;
+      background: #050505;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Pulsing Orb Animation */
+    .orb {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 255, 255, 0.3), rgba(0, 255, 255, 0) 70%);
+      box-shadow: 
+        0 0 40px rgba(0, 255, 255, 0.4),
+        0 0 80px rgba(0, 255, 255, 0.2),
+        inset 0 0 40px rgba(0, 255, 255, 0.1);
+      animation: orbPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes orbPulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 
+          0 0 40px rgba(0, 255, 255, 0.4),
+          0 0 80px rgba(0, 255, 255, 0.2);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 
+          0 0 60px rgba(0, 255, 255, 0.6),
+          0 0 120px rgba(0, 255, 255, 0.3);
+      }
+    }
+
+    .orb.listening {
+      background: radial-gradient(circle, rgba(0, 255, 255, 0.6), rgba(0, 255, 255, 0) 70%);
+      animation: orbListening 1s ease-in-out infinite;
+    }
+
+    @keyframes orbListening {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+        box-shadow: 
+          0 0 80px rgba(0, 255, 255, 0.8),
+          0 0 160px rgba(0, 255, 255, 0.4);
+      }
+    }
+
+    .orb.error {
+      background: radial-gradient(circle, rgba(255, 82, 82, 0.5), rgba(255, 82, 82, 0) 70%);
+      box-shadow: 
+        0 0 40px rgba(255, 82, 82, 0.6),
+        0 0 80px rgba(255, 82, 82, 0.3);
+    }
+
+    /* Glassmorphism Card */
+    .glass-card {
+      background: rgba(10, 10, 10, 0.6);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(0, 255, 255, 0.1);
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    /* Code Display */
+    .code-stream {
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.9);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 400px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 255, 255, 0.3) transparent;
+    }
+
+    .code-stream::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .code-stream::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .code-stream::-webkit-scrollbar-thumb {
+      background: rgba(0, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    /* Cursor blink for streaming */
+    .cursor-blink {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: rgba(0, 255, 255, 0.8);
+      animation: blink 1s infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    /* Buttons with glow */
+    .btn-glow {
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .btn-glow:active {
+      transform: scale(0.95);
+    }
+
+    .btn-glow.cyan {
+      background: rgba(0, 255, 255, 0.2);
+      border: 1px solid rgba(0, 255, 255, 0.4);
+      color: #00ffff;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    }
+
+    .btn-glow.cyan:hover {
+      background: rgba(0, 255, 255, 0.3);
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    }
+
+    .btn-glow.red {
+      background: rgba(255, 82, 82, 0.2);
+      border: 1px solid rgba(255, 82, 82, 0.4);
+      color: #ff5252;
+      box-shadow: 0 0 20px rgba(255, 82, 82, 0.3);
+    }
+
+    .btn-glow.red:hover {
+      background: rgba(255, 82, 82, 0.3);
+      box-shadow: 0 0 30px rgba(255, 82, 82, 0.5);
+    }
+
+    /* Fade in animation */
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Pairing Input */
+    .pairing-input {
+      background: rgba(10, 10, 10, 0.8);
+      border: 2px solid rgba(0, 255, 255, 0.3);
+      color: #00ffff;
+      font-size: 32px;
+      letter-spacing: 12px;
+      text-align: center;
+      font-family: 'SF Mono', monospace;
+      transition: all 0.3s ease;
+    }
+
+    .pairing-input:focus {
+      outline: none;
+      border-color: rgba(0, 255, 255, 0.6);
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  
+  <!-- Header -->
+  <header class="pt-8 pb-6 px-6">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+          <i data-lucide="zap" class="w-4 h-4 text-white"></i>
+        </div>
+        <h1 class="text-xl font-light tracking-wide text-white">AuraCode</h1>
+      </div>
+      <div id="status" class="flex items-center gap-2">
+        <div id="statusDot" class="w-2 h-2 rounded-full bg-gray-700"></div>
+        <span id="statusText" class="text-xs text-gray-500">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col items-center px-6 pb-20">
+    
+    <!-- Pairing Screen -->
+    <div id="pairingScreen" class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl font-light text-white mb-2">Enter Pairing Code</h2>
+        <p class="text-sm text-gray-500">From your VS Code extension</p>
+      </div>
+
+      <input 
+        type="text" 
+        id="pairingInput" 
+        class="pairing-input w-full py-4 rounded-xl mb-6"
+        placeholder="- - - -"
+        maxlength="4"
+        inputmode="numeric"
+        pattern="[0-9]*"
+      />
+
+      <button 
+        id="pairButton" 
+        class="btn-glow cyan w-full py-4 rounded-xl text-sm font-medium uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled
+      >
+        Connect
+      </button>
+
+      <p id="pairingError" class="text-red-500 text-sm text-center mt-4 hidden"></p>
+    </div>
+
+    <!-- Main Interface (Hidden until paired) -->
+    <div id="mainInterface" class="hidden w-full max-w-2xl">
+      
+      <!-- Central Orb -->
+      <div class="flex flex-col items-center mb-12">
+        <div id="orb" class="orb flex items-center justify-center mb-6">
+          <i data-lucide="mic" id="orbIcon" class="w-16 h-16 text-cyan-400"></i>
+        </div>
+        <button 
+          id="micButton" 
+          class="btn-glow cyan px-8 py-3 rounded-full text-sm font-medium uppercase tracking-wide"
+        >
+          Start Listening
+        </button>
+        <p id="statusMessage" class="text-sm text-gray-500 mt-4 h-6"></p>
+      </div>
+
+      <!-- Code Preview Card -->
+      <div id="previewCard" class="hidden glass-card rounded-2xl overflow-hidden fade-in">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-cyan-500/20 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <i data-lucide="file-code" class="w-4 h-4 text-cyan-400"></i>
+            <span class="text-sm text-cyan-400" id="fileName">Untitled</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div id="streamingIndicator" class="hidden flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+              <span class="text-xs text-cyan-400">Streaming...</span>
+            </div>
+            <span id="languageBadge" class="text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300"></span>
+          </div>
+        </div>
+
+        <!-- Code Display -->
+        <div class="p-6">
+          <div id="codeDisplay" class="code-stream"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="px-6 pb-6 pt-2 flex gap-3">
+          <button 
+            id="discardBtn" 
+            class="btn-glow red flex-1 px-6 py-4 rounded-xl text-sm font-medium uppercase tracking-wide flex items-center justify-center gap-2"
+          >
+            <i data-lucide="x" class="w-4 h-4"></i>
+            Discard
+          </button>
+          <button 
+            id="approveBtn" 
+            class="btn-glow cyan flex-1 px-6 py-4 rounded-xl text-sm font-medium uppercase tracking-wide flex items-center justify-center gap-2"
+          >
+            <i data-lucide="check" class="w-4 h-4"></i>
+            Approve
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="pb-8 px-6 text-center">
+    <p class="text-xs text-gray-600">Voice your code. Preview in real-time. Approve with aura.</p>
+  </footer>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Configuration
+    const WS_URL = window.location.protocol === 'https:' 
+      ? `wss://${window.location.host}` 
+      : `ws://${window.location.host}`;
+
+    // State
+    let ws = null;
+    let recognition = null;
+    let isPaired = false;
+    let isListening = false;
+    let isStreaming = false;
+    let streamedCode = '';
+    let currentFileName = 'Untitled';
+    let currentLanguage = 'text';
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    
+    // Pairing elements
+    const pairingScreen = document.getElementById('pairingScreen');
+    const pairingInput = document.getElementById('pairingInput');
+    const pairButton = document.getElementById('pairButton');
+    const pairingError = document.getElementById('pairingError');
+    
+    // Main interface elements
+    const mainInterface = document.getElementById('mainInterface');
+    const orb = document.getElementById('orb');
+    const orbIcon = document.getElementById('orbIcon');
+    const micButton = document.getElementById('micButton');
+    const statusMessage = document.getElementById('statusMessage');
+    const previewCard = document.getElementById('previewCard');
+    const fileName = document.getElementById('fileName');
+    const languageBadge = document.getElementById('languageBadge');
+    const streamingIndicator = document.getElementById('streamingIndicator');
+    const codeDisplay = document.getElementById('codeDisplay');
+    const approveBtn = document.getElementById('approveBtn');
+    const discardBtn = document.getElementById('discardBtn');
+
+    // ============================================================
+    // WEBSOCKET CONNECTION
+    // ============================================================
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        console.log('[WS] Connected');
+        ws.send(JSON.stringify({ type: 'identify', clientType: 'mobile' }));
+        updateStatus('connected', 'Connected');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('[WS] Message:', data.type);
+        handleMessage(data);
+      };
+
+      ws.onerror = (error) => {
+        console.error('[WS] Error:', error);
+        updateStatus('error', 'Connection error');
+      };
+
+      ws.onclose = () => {
+        console.log('[WS] Disconnected');
+        updateStatus('disconnected', 'Disconnected');
+        isPaired = false;
+        setTimeout(connectWebSocket, 3000);
+      };
+    }
+
+    // ============================================================
+    // MESSAGE HANDLERS
+    // ============================================================
+    function handleMessage(data) {
+      switch (data.type) {
+        case 'identified':
+          console.log('[Paired] Waiting for pairing code...');
+          break;
+
+        case 'paired':
+          console.log('[Paired] Successfully paired to room:', data.code);
+          isPaired = true;
+          showMainInterface();
+          break;
+
+        case 'error':
+          showPairingError(data.message);
+          break;
+
+        case 'stream_start':
+          handleStreamStart(data);
+          break;
+
+        case 'stream_chunk':
+          handleStreamChunk(data);
+          break;
+
+        case 'stream_end':
+          handleStreamEnd(data);
+          break;
+
+        case 'extension_disconnected':
+          alert('Extension disconnected. Please reconnect.');
+          isPaired = false;
+          location.reload();
+          break;
+      }
+    }
+
+    // ============================================================
+    // PAIRING LOGIC
+    // ============================================================
+    pairingInput.addEventListener('input', (e) => {
+      // Only allow digits
+      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+      
+      // Enable button when 4 digits entered
+      pairButton.disabled = e.target.value.length !== 4;
+      
+      // Clear error
+      pairingError.classList.add('hidden');
+    });
+
+    pairButton.addEventListener('click', () => {
+      const code = pairingInput.value;
+      if (code.length === 4) {
+        ws.send(JSON.stringify({ type: 'pair', code }));
+        pairButton.disabled = true;
+        pairButton.textContent = 'Connecting...';
+      }
+    });
+
+    function showPairingError(message) {
+      pairingError.textContent = message;
+      pairingError.classList.remove('hidden');
+      pairButton.disabled = false;
+      pairButton.textContent = 'Connect';
+    }
+
+    function showMainInterface() {
+      pairingScreen.classList.add('hidden');
+      mainInterface.classList.remove('hidden');
+      initSpeechRecognition();
+    }
+
+    // ============================================================
+    // STATUS MANAGEMENT
+    // ============================================================
+    function updateStatus(state, text) {
+      statusText.textContent = text;
+      switch (state) {
+        case 'connected':
+          statusDot.className = 'w-2 h-2 rounded-full bg-cyan-500';
+          break;
+        case 'error':
+          statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+          break;
+        default:
+          statusDot.className = 'w-2 h-2 rounded-full bg-gray-700';
+      }
+    }
+
+    // ============================================================
+    // SPEECH RECOGNITION
+    // ============================================================
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        statusMessage.textContent = 'Speech recognition not supported';
+        micButton.disabled = true;
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        console.log('[Speech] Started');
+        isListening = true;
+        orb.classList.add('listening');
+        micButton.textContent = 'Listening...';
+        statusMessage.textContent = 'Speak now...';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log('[Speech] Transcript:', transcript);
+        statusMessage.textContent = `"${transcript}"`;
+        
+        // Send to extension
+        if (ws && ws.readyState === WebSocket.OPEN && isPaired) {
+          ws.send(JSON.stringify({
+            type: 'voice_prompt',
+            prompt: transcript
+          }));
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('[Speech] Error:', event.error);
+        statusMessage.textContent = `Error: ${event.error}`;
+        stopListening();
+      };
+
+      recognition.onend = () => {
+        console.log('[Speech] Ended');
+        stopListening();
+      };
+    }
+
+    micButton.addEventListener('click', () => {
+      if (recognition && !isListening) {
+        previewCard.classList.add('hidden');
+        recognition.start();
+      }
+    });
+
+    function stopListening() {
+      isListening = false;
+      orb.classList.remove('listening');
+      micButton.textContent = 'Start Listening';
+      
+      if (!streamedCode) {
+        setTimeout(() => {
+          statusMessage.textContent = '';
+        }, 2000);
+      }
+    }
+
+    // ============================================================
+    // STREAMING HANDLERS
+    // ============================================================
+    function handleStreamStart(data) {
+      console.log('[Stream] Start');
+      isStreaming = true;
+      streamedCode = '';
+      
+      currentFileName = data.fileName || 'Untitled';
+      currentLanguage = data.language || 'text';
+      
+      fileName.textContent = currentFileName;
+      languageBadge.textContent = currentLanguage;
+      
+      codeDisplay.innerHTML = '<span class="cursor-blink"></span>';
+      previewCard.classList.remove('hidden');
+      streamingIndicator.classList.remove('hidden');
+      
+      statusMessage.textContent = 'Generating code...';
+    }
+
+    function handleStreamChunk(data) {
+      streamedCode += data.chunk;
+      
+      // Update display with cursor
+      codeDisplay.innerHTML = escapeHtml(streamedCode) + '<span class="cursor-blink"></span>';
+      
+      // Auto-scroll to bottom
+      codeDisplay.scrollTop = codeDisplay.scrollHeight;
+    }
+
+    function handleStreamEnd(data) {
+      console.log('[Stream] End');
+      isStreaming = false;
+      
+      // Remove cursor
+      codeDisplay.innerHTML = escapeHtml(streamedCode);
+      
+      streamingIndicator.classList.add('hidden');
+      statusMessage.textContent = 'Review and approve';
+      
+      // Final scroll
+      codeDisplay.scrollTop = codeDisplay.scrollHeight;
+    }
+
+    // ============================================================
+    // APPROVAL ACTIONS
+    // ============================================================
+    approveBtn.addEventListener('click', () => {
+      if (ws && ws.readyState === WebSocket.OPEN && isPaired) {
+        ws.send(JSON.stringify({ type: 'approve' }));
+        
+        // Vibration feedback
+        if (navigator.vibrate) {
+          navigator.vibrate([50, 30, 50]);
+        }
+        
+        previewCard.classList.add('hidden');
+        statusMessage.textContent = 'Code inserted ✓';
+        streamedCode = '';
+        
+        // Success feedback
+        orb.classList.remove('error');
+        
+        setTimeout(() => {
+          statusMessage.textContent = '';
+        }, 2000);
+      }
+    });
+
+    discardBtn.addEventListener('click', () => {
+      previewCard.classList.add('hidden');
+      streamedCode = '';
+      statusMessage.textContent = '';
+      
+      // Light vibration
+      if (navigator.vibrate) {
+        navigator.vibrate(30);
+      }
+    });
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Prevent scroll bounce on iOS
+    document.body.addEventListener('touchmove', (e) => {
+      if (e.target === document.body) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Initialize
+    connectWebSocket();
+  </script>
+
+</body>
+</html>

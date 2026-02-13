@@ -1,0 +1,37 @@
+{
+  "name": "auracode-workspace",
+  "version": "1.0.0",
+  "description": "Context-aware voice coding with streaming AI - monorepo workspace",
+  "private": true,
+  "scripts": {
+    "setup": "npm install --prefix relay-server && npm install --prefix extension && npm run compile --prefix extension",
+    "start:relay": "npm start --prefix relay-server",
+    "dev:extension": "npm run watch --prefix extension",
+    "compile:extension": "npm run compile --prefix extension",
+    "package:extension": "npm run package --prefix extension",
+    "clean": "rm -rf relay-server/node_modules extension/node_modules extension/out"
+  },
+  "workspaces": [
+    "relay-server",
+    "extension"
+  ],
+  "keywords": [
+    "voice-coding",
+    "ai",
+    "streaming",
+    "context-aware",
+    "vscode",
+    "websocket",
+    "pairing"
+  ],
+  "author": "AuraCode Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/auracode"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
