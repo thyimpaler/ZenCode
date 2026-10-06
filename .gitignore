@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+build/
+*.vsix
+
+# logs
+*.log
+npm-debug.log*
+
+# env files
+.env
+.env*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
